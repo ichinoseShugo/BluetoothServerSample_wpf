@@ -5,8 +5,21 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BluetoothServerSample_wpf"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="600" Width="640">
     <Grid>
-        
+        <Image x:Name="rgbImage" AutomationProperties.Name="rgbImage" Loaded="WindowLoaded" />
+        <Canvas Name="skeletonCanvas"
+                Width="{Binding ElementName=rgbImage, Path=ActualWidth}"
+                Height="{Binding ElementName=rgbImage, Path=ActualHeight}"/>
+        <CheckBox x:Name="Player1" Content="Player1" HorizontalAlignment="Left" Margin="320,514,0,0" VerticalAlignment="Top" Checked="Player1_Checked"/>
+        <CheckBox x:Name="Player2" Content="Player2" HorizontalAlignment="Left" Margin="320,529,0,0" VerticalAlignment="Top" Checked="Player2_Checked"/>
+        <CheckBox x:Name="Player3" Content="Player3" HorizontalAlignment="Left" Margin="320,544,0,0" VerticalAlignment="Top" Checked="Player3_Checked"/>
+        <StackPanel >
+            <Button x:Name="ListenButton" Margin="40,360,500,0" Click="ListenButton_Click" Content="Start Listening"/>
+            <Button x:Name="DisconnectButton" Margin="40,20,500,0" IsEnabled="False" Click="DisconnectButton_Click" Content="Disconnect"/>
+            <Button x:Name="ReadButton" Margin="40,20,500,0" IsEnabled="False" Click="ReadButton_Click" Content="Read"/>
+            <Button x:Name="SendButton" Margin="40,20,500,0" IsEnabled="False" Click="SendButton_Click" Content="Send"/>
+            <Button x:Name="PingButton" Margin="40,20,500,0" IsEnabled="False" Click="PingButton_Click" Content="Ping"/>
+        </StackPanel>
     </Grid>
 </Window>
