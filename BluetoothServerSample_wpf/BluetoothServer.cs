@@ -11,7 +11,7 @@ using Windows.Networking.Sockets;
 using Windows.Storage.Streams;
 
 
-namespace KinectJointRecord_WPF
+namespace BluetoothServerSample_wpf
 {
     //BluetoothServer(親機側のサンプルコード)
     class BluetoothServer
@@ -103,23 +103,25 @@ namespace KinectJointRecord_WPF
             {
                 if (socket != null)
                 {
+                    System.Diagnostics.Stopwatch StopWatch2 = new System.Diagnostics.Stopwatch();
                     //7文字(7バイト)のデータ
                     string data = "ABCDEFG";
                     //バイトデータの文字コードを変更(androidを想定してUTF8に変更しているが変更の必要があるかどうかは未実験、必要ないかも)
                     byte[] bytes = System.Text.Encoding.UTF8.GetBytes(data);
-                    StopWatch.Reset();
-                    StopWatch.Start();
+                    //StopWatch2.Reset();
+                    StopWatch2.Start();
                     //OutputStreamに文字列を送信
                     await socket.OutputStream.WriteAsync(bytes.AsBuffer());
                     var ns = socket.InputStream;
                     byte[] buffer = new byte[120];
                     //InputStreamのデータを変数bufferに格納
                     await socket.InputStream.ReadAsync(buffer.AsBuffer(), 120, InputStreamOptions.Partial);
-                    StopWatch.Stop();
-                    DelayTimeList.Add(StopWatch.ElapsedMilliseconds);
+                    StopWatch2.Stop();
+                    DelayTimeList.Add(StopWatch2.ElapsedMilliseconds);
                     //受信したbyteデータを文字列に変換
                     string str = Encoding.GetEncoding("ASCII").GetString(buffer);
                     times++;
+
                 }
             }
             catch (Exception ex)
@@ -139,10 +141,11 @@ namespace KinectJointRecord_WPF
                     }
                 }
             }
-            if (times < 1)
+            if (times < 50)
             {
                 try
                 {
+                    //System.Threading.Thread.Sleep();
                     ping(times);
                 }
                 catch (Exception e)
@@ -151,7 +154,10 @@ namespace KinectJointRecord_WPF
                 }
             }
             else
+            {
+                times = 0;
                 MessageBox.Show("実験終了");
+            }
 
         }
         //周囲にサービスの存在を告知する命令 (コメントアウトしたら接続できなくなったんで一応必要な模様)

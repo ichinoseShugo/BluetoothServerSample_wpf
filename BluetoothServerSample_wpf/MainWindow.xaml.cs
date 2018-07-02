@@ -13,7 +13,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using Microsoft.Kinect;
 using System.ComponentModel;
 
 using Windows.Devices.Bluetooth;
@@ -30,6 +29,8 @@ namespace BluetoothServerSample_wpf
     /// </summary>
     public partial class MainWindow : Window
     {
+
+
         List<BluetoothServer> bServerList = new List<BluetoothServer>();
         public int id = 0;
         /// 時間計測ストップウォッチ
@@ -53,6 +54,7 @@ namespace BluetoothServerSample_wpf
             DisconnectButton.IsEnabled = true;
             ReadButton.IsEnabled = true;
             SendButton.IsEnabled = true;
+            PingButton.IsEnabled = true;
 
         }
 
@@ -62,17 +64,17 @@ namespace BluetoothServerSample_wpf
 
         private void SendButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            bServerList[0].SendMessage();
+            bServerList[0].send();
         }
         private void ReadButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            bServerList[0].ReadMessage();
+            bServerList[0].receive();
 
         }
 
         private void PingButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            //bServerList[0].ping(0);
+            bServerList[0].ping(0);
 
         }
 
@@ -82,7 +84,7 @@ namespace BluetoothServerSample_wpf
         private void DisconnectButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
             //bluetoothServer.Disconnect();
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 50; i++)
                 MessageBox.Show("" + bServerList[0].DelayTimeList[i]);
             bServerList[0].DelayTimeList.Clear();
         }
