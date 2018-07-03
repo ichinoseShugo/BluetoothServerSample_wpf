@@ -16,18 +16,41 @@ namespace BluetoothServerSample_wpf
     //BluetoothServer(親機側のサンプルコード)
     class BluetoothServer
     {
-        public int Deviceid = 0;
+        public int deviceId = 0;
         private StreamSocket socket;
         private RfcommServiceProvider rfcommProvider;
         private StreamSocketListener socketListener;
-        public List<long> DelayTimeList = new List<long>();
+        public List<long> delayTimeList = new List<long>();
         private MainWindow main = new MainWindow();
+        System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
 
+        //イベントハンドラ-----------------------------------------------------------------------------------------------------
 
-        System.Diagnostics.Stopwatch StopWatch = new System.Diagnostics.Stopwatch();
+        //Clientとの接続が確立した際に呼び出されるイベントハンドラ
+        public void OnConnectionReceived(StreamSocketListener sender, StreamSocketListenerConnectionReceivedEventArgs args)
+        {
+            //接続が確立した後はソケットリスナーは必要ないため閉じる
+            socketListener.Dispose();
+            socketListener = null;
+
+            try
+            {
+                socket = args.Socket;
+                //接続が確立したことをMainプログラムに通知
+                main.Player_Connect(deviceId);
+            }
+            catch
+            {
+                Disconnect();
+                Console.WriteLine("【connect】Player" + (deviceId + 1) + "との通信が切断されました");
+                return;
+            }
+        }
+
+        //メソッド-----------------------------------------------------------------------------------------------------
 
         //BluetoothClientからの接続を受け付けるソケットを生成する命令
-        public async void listen(int id)
+        public async void Listen(int deviceorder)
         {
             try
             {
@@ -41,63 +64,57 @@ namespace BluetoothServerSample_wpf
                 // The Bluetooth radio may be off.
                 return;
             }
-            MessageBox.Show("接続待機中");
+
+            Console.WriteLine("接続待機中");
             //接続されるデバイスの順番を表すID
-            Deviceid = id;
+            deviceId = deviceorder;
 
+            //OnConnectionReceivedをClientからの接続が確立したイベントとして登録
             socketListener = new StreamSocketListener();
-
-            //Clientからの接続が確立した際にOnConnectionReceivedに飛ぶ
             socketListener.ConnectionReceived += OnConnectionReceived;
-            var rfcomm = rfcommProvider.ServiceId.AsString();
 
+            var rfcomm = rfcommProvider.ServiceId.AsString();
             await socketListener.BindServiceNameAsync(rfcommProvider.ServiceId.AsString(),
                 SocketProtectionLevel.BluetoothEncryptionAllowNullAuthentication);
 
-            // Set the SDP attributes and start Bluetooth advertising
-            //advertising: 自分はこんなサービスを提供していますよ」と言う情報を周囲に発信します。この情報を載せたパケットをアドバタイジングパケットと言います。サービスの識別にはUUIDを利用します。
-
+            //Set the SDP attributes and start Bluetooth advertising
+            //advertising: 自分はこんなサービスを提供していますよ」と言う情報を周囲に発信します
+            //この情報を載せたパケットをアドバタイジングパケットと言います。サービスの識別にはUUIDを利用します。
             InitializeServiceSdpAttributes(rfcommProvider);
 
             try
             {
                 rfcommProvider.StartAdvertising(socketListener, true);
             }
-            catch (Exception e)
+            catch
             {
-                // If you aren't able to get a reference to an RfcommServiceProvider, tell the user why.  Usually throws an exception if user changed their privacy settings to prevent Sync w/ Devices.  
-
+                // RfcommServiceProviderへの参照を取得できない場合は、その理由をユーザーに伝えます。
+                //通常、ユーザが自分のプライバシー設定を変更してデバイスとの同期を防止すると例外がスローされます。
                 return;
             }
-
             return;
         }
-        //Clientとの接続が確立した際に呼び出されるイベントハンドラ
-        public void OnConnectionReceived(
-            StreamSocketListener sender, StreamSocketListenerConnectionReceivedEventArgs args)
+
+        //周囲にサービスの存在を告知する命令 (コメントアウトしたら接続できなくなったんで一応必要な模様)
+        public void InitializeServiceSdpAttributes(RfcommServiceProvider rfcommProvider)
         {
-            //接続が確立した後はソケットリスナーは必要ないため閉じる
-            socketListener.Dispose();
-            socketListener = null;
-
-            try
-            {
-                socket = args.Socket;
-                //接続が確立したことをMainプログラムに通知
-                main.Player_Connect(Deviceid);
-            }
-            catch (Exception e)
-            {
-
-                disconnect();
-                MessageBox.Show("Player" + (Deviceid + 1) + "との通信が切断されました");
-                return;
-            }
-
+            var sdpWriter = new DataWriter();
+            const UInt16 SdpServiceNameAttributeId = 0x100;
+            const byte SdpServiceNameAttributeType = (4 << 3) | 5;
+            const string SdpServiceName = "BluetoothMusicConnect";
+            // Write the Service Name Attribute.
+            sdpWriter.WriteByte(SdpServiceNameAttributeType);
+            // The length of the UTF-8 encoded Service Name SDP Attribute.
+            sdpWriter.WriteByte((byte)SdpServiceName.Length);
+            // The UTF-8 encoded Service Name value.
+            sdpWriter.UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding.Utf8;
+            sdpWriter.WriteString(SdpServiceName);
+            // Set the SDP Attribute on the RFCOMM Service Provider.
+            rfcommProvider.SdpRawAttributes.Add(SdpServiceNameAttributeId, sdpWriter.DetachBuffer());
         }
 
         //接続したClientとの送受信遅延時間を計測する命令
-        public async void ping(int times)
+        public async void Ping(int times)
         {
             try
             {
@@ -117,27 +134,24 @@ namespace BluetoothServerSample_wpf
                     //InputStreamのデータを変数bufferに格納
                     await socket.InputStream.ReadAsync(buffer.AsBuffer(), 120, InputStreamOptions.Partial);
                     StopWatch2.Stop();
-                    DelayTimeList.Add(StopWatch2.ElapsedMilliseconds);
+                    delayTimeList.Add(StopWatch2.ElapsedMilliseconds);
                     //受信したbyteデータを文字列に変換
                     string str = Encoding.GetEncoding("ASCII").GetString(buffer);
                     times++;
-
                 }
             }
-            catch (Exception ex)
+            catch
             {
-
                 lock (this)
                 {
                     if (socket == null)
                     {
                         // Do not print anything here -  the user closed the sock
-
                     }
                     else
                     {
-                        disconnect();
-                        MessageBox.Show("Player" + (Deviceid + 1) + "との通信が切断されました");
+                        Disconnect();
+                        Console.WriteLine("【ping】Player" + (deviceId + 1) + "との通信が切断されました");
                     }
                 }
             }
@@ -146,43 +160,21 @@ namespace BluetoothServerSample_wpf
                 try
                 {
                     //System.Threading.Thread.Sleep();
-                    ping(times);
+                    Ping(times);
                 }
-                catch (Exception e)
+                catch
                 {
-
                 }
             }
             else
             {
                 times = 0;
-                MessageBox.Show("実験終了");
+                Console.WriteLine("ping実験終了");
             }
-
-        }
-        //周囲にサービスの存在を告知する命令 (コメントアウトしたら接続できなくなったんで一応必要な模様)
-        public void InitializeServiceSdpAttributes(RfcommServiceProvider rfcommProvider)
-        {
-            var sdpWriter = new DataWriter();
-            const UInt16 SdpServiceNameAttributeId = 0x100;
-            const byte SdpServiceNameAttributeType = (4 << 3) | 5;
-            const string SdpServiceName = "BluetoothMusicConnect";
-            // Write the Service Name Attribute.
-            sdpWriter.WriteByte(SdpServiceNameAttributeType);
-
-            // The length of the UTF-8 encoded Service Name SDP Attribute.
-            sdpWriter.WriteByte((byte)SdpServiceName.Length);
-
-            // The UTF-8 encoded Service Name value.
-            sdpWriter.UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding.Utf8;
-            sdpWriter.WriteString(SdpServiceName);
-
-            // Set the SDP Attribute on the RFCOMM Service Provider.
-            rfcommProvider.SdpRawAttributes.Add(SdpServiceNameAttributeId, sdpWriter.DetachBuffer());
         }
 
         //InputStreamの格納されている受信メッセージを受け取る命令
-        public async void receive()
+        public async void Receive()
         {
 
             try
@@ -207,15 +199,15 @@ namespace BluetoothServerSample_wpf
                     }
                     else
                     {
-                        disconnect();
-                        MessageBox.Show("Player" + (Deviceid + 1) + "との通信が切断されました");
+                        Disconnect();
+                        MessageBox.Show("Player" + (deviceId + 1) + "との通信が切断されました");
                     }
                 }
             }
         }
 
         //送信メッセージをOutputStreamに格納する命令
-        public async void send()
+        public async void Send()
         {
             // There's no need to send a zero length message
             // Make sure that the connection is still up and there is a message to send
@@ -225,8 +217,8 @@ namespace BluetoothServerSample_wpf
                 string data = "ABCDEFG";
                 //バイトデータの文字コードを変更(androidを想定してUTF8に変更しているが変更の必要があるかどうかは未実験、必要ないかも)
                 byte[] bytes = System.Text.Encoding.UTF8.GetBytes(data);
-                StopWatch.Reset();
-                StopWatch.Start();
+                stopWatch.Reset();
+                stopWatch.Start();
                 //OutputStreamに文字列を送信
                 await socket.OutputStream.WriteAsync(bytes.AsBuffer());
 
@@ -234,7 +226,7 @@ namespace BluetoothServerSample_wpf
         }
 
         //接続切断命令
-        public void disconnect()
+        public void Disconnect()
         {
             if (rfcommProvider != null)
             {
@@ -265,9 +257,5 @@ namespace BluetoothServerSample_wpf
             }
 
         }
-
-
-
     }
-
 }

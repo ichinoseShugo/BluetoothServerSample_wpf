@@ -1,128 +1,69 @@
 ﻿using System;
-using System.IO;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.ComponentModel;
-
-using Windows.Devices.Bluetooth;
-using Windows.Devices.Bluetooth.Rfcomm;
-using Windows.Networking.Sockets;
-using Windows.Storage.Streams;
+using System.Windows;
 
 
 namespace BluetoothServerSample_wpf
 {
-
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
-
-
         List<BluetoothServer> bServerList = new List<BluetoothServer>();
-        public int id = 0;
-        /// 時間計測ストップウォッチ
-        System.Diagnostics.Stopwatch StopWatch = new System.Diagnostics.Stopwatch();
-
+        /// <summary>
+        /// 接続されるデバイスの順番を表すID
+        /// </summary>
+        int deviceOerder = 0;
+        System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
 
         public MainWindow()
         {
             InitializeComponent();
-            Closing += WindowClosing;
         }
 
         private void ListenButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
             BluetoothServer bluetoothServer = new BluetoothServer();
-            bluetoothServer.listen(id);
+            bluetoothServer.Listen(deviceOerder);
             bServerList.Add(bluetoothServer);
-            id++;
-
+            deviceOerder++;
+            //各種ボタンを使用可能に
             ListenButton.IsEnabled = true;
             DisconnectButton.IsEnabled = true;
             ReadButton.IsEnabled = true;
             SendButton.IsEnabled = true;
             PingButton.IsEnabled = true;
-
         }
-
-
-
-
-
         private void SendButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            bServerList[0].send();
+            bServerList[0].Send();
         }
         private void ReadButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            bServerList[0].receive();
-
+            bServerList[0].Receive();
         }
-
         private void PingButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            bServerList[0].ping(0);
-
+            bServerList[0].Ping(0);
         }
-
-
-
-
         private void DisconnectButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
             //bluetoothServer.Disconnect();
             for (int i = 0; i < 50; i++)
-                MessageBox.Show("" + bServerList[0].DelayTimeList[i]);
-            bServerList[0].DelayTimeList.Clear();
-        }
-
-
-        /// <summary>
-        /// 初期化処理(Kinectセンサーやバッファ類の初期化)
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void WindowLoaded(object sender, RoutedEventArgs e)
-        {
-
-        }
-
-        /// <summary>
-        /// Windowが閉じる時に呼び出されるイベント
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void WindowClosing(object sender, CancelEventArgs e)
-        {
-
+                MessageBox.Show("" + bServerList[0].delayTimeList[i]);
+            bServerList[0].delayTimeList.Clear();
         }
 
         private void Player1_Checked(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("プレイヤー1接続");
+            Console.WriteLine("プレイヤー1接続");
         }
-
         private void Player2_Checked(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("プレイヤー2接続");
+            Console.WriteLine("プレイヤー2接続");
         }
-
         private void Player3_Checked(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("プレイヤー3接続");
+            Console.WriteLine("プレイヤー3接続");
         }
 
         public async void Player_Connect(int PlayerId)
@@ -141,5 +82,5 @@ namespace BluetoothServerSample_wpf
                                 })
                         );
         }
-    }//MainWindow
-}//namespace
+    }
+}
