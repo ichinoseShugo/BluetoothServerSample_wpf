@@ -160,7 +160,7 @@ namespace BluetoothServerSample_wpf
                 try
                 {
                     //System.Threading.Thread.Sleep();
-                    Ping(times);
+                    //Ping(times);
                 }
                 catch
                 {
