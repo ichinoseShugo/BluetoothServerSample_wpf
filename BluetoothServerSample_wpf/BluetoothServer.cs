@@ -19,6 +19,8 @@ namespace BluetoothServerSample_wpf
         public int deviceOrder;
         /// <summary> BluetoothDeviceID (12桁の英数字) </summary>
         public string deviceId;
+        public string deviceName;
+        private MainWindow mMain;
 
         private StreamSocket socket;
         private RfcommServiceProvider rfcommProvider;
@@ -27,10 +29,12 @@ namespace BluetoothServerSample_wpf
         /// <summary> 遅延計測用ストップウォッチ </summary>
         private System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
 
-        public BluetoothServer(int dOrder, RfcommDeviceDisplay device)
+        public BluetoothServer(int dOrder, RfcommDeviceDisplay device, MainWindow main)
         {
             deviceOrder = dOrder;
             deviceId = device.Id.Split('-')[1].Replace(":", "");
+            deviceName = device.Name;
+            mMain = main;
         }
         
         #region イベントハンドラ
@@ -45,7 +49,7 @@ namespace BluetoothServerSample_wpf
             {
                 socket = args.Socket;
                 //接続が確立したことをMainプログラムに通知
-                //main.Player_Connect(deviceId);
+                mMain.Player_Connect(deviceName);
             }
             catch
             {

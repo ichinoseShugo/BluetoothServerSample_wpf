@@ -62,8 +62,7 @@ namespace BluetoothServerSample_wpf
             //Serverの準備と接続待機状態への移行
             var selectedDevice = ResultsListView.SelectedItem as RfcommDeviceDisplay;
             if (PairingCollection.Contains(selectedDevice.Name)) return;
-            PairingCollection.Add(selectedDevice.Name);
-            BluetoothServer bluetoothServer = new BluetoothServer(deviceCount++, selectedDevice);
+            BluetoothServer bluetoothServer = new BluetoothServer(deviceCount++, selectedDevice, this);
             bServerList.Add(bluetoothServer);
             bluetoothServer.Listen();
 
@@ -259,14 +258,14 @@ namespace BluetoothServerSample_wpf
         #endregion
 
         #region 接続済みデバイス一覧の取得と表示
-        public async void Player_Connect(int PlayerId)
+        public async void Player_Connect(string devicename)
         {
             await Dispatcher.BeginInvoke(
-                                new Action(() =>
-                                {
-                                    StatusMessage.Text = PlayerId + "接続";
-                                })
-                        );
+                 new Action(() =>
+                 {
+                     PairingCollection.Add(devicename);
+                 }
+                ));
         }
         private void PairingList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
