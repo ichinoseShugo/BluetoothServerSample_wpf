@@ -13,20 +13,28 @@ using Windows.Storage.Streams;
 
 namespace BluetoothServerSample_wpf
 {
-    //BluetoothServer(親機側のサンプルコード)
     class BluetoothServer
     {
-        public int deviceId = 0;
+        /// <summary> 接続された順番 </summary>
+        public int deviceOrder;
+        /// <summary> BluetoothDeviceID (12桁の英数字) </summary>
+        public string deviceId;
+
         private StreamSocket socket;
         private RfcommServiceProvider rfcommProvider;
         private StreamSocketListener socketListener;
-        public List<long> delayTimeList = new List<long>();
-        private MainWindow main = new MainWindow();
-        System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
 
-        //イベントハンドラ-----------------------------------------------------------------------------------------------------
+        /// <summary> 遅延計測用ストップウォッチ </summary>
+        private System.Diagnostics.Stopwatch stopWatch = new System.Diagnostics.Stopwatch();
 
-        //Clientとの接続が確立した際に呼び出されるイベントハンドラ
+        public BluetoothServer(int dOrder, RfcommDeviceDisplay device)
+        {
+            deviceOrder = dOrder;
+            deviceId = device.Id.Split('-')[1].Replace(":", "");
+        }
+        
+        #region イベントハンドラ
+        /// <summary> Clientとの接続が確立したとき呼び出されるイベント </summary>
         public void OnConnectionReceived(StreamSocketListener sender, StreamSocketListenerConnectionReceivedEventArgs args)
         {
             //接続が確立した後はソケットリスナーは必要ないため閉じる
@@ -37,7 +45,7 @@ namespace BluetoothServerSample_wpf
             {
                 socket = args.Socket;
                 //接続が確立したことをMainプログラムに通知
-                main.Player_Connect(deviceId);
+                //main.Player_Connect(deviceId);
             }
             catch
             {
@@ -46,16 +54,18 @@ namespace BluetoothServerSample_wpf
                 return;
             }
         }
+        #endregion
 
-        //メソッド-----------------------------------------------------------------------------------------------------
-
-        //BluetoothClientからの接続を受け付けるソケットを生成する命令
-        public async void Listen(int deviceorder)
+        #region メソッド
+        /// <summary> Clientとの接続のためにソケットを生成し接続待機状態へ移行する </summary>
+        public async void Listen()
         {
             try
             {
+                //uuidの下12桁はClient側のbluetooth idとする
+                string uuid = "17fcf242-f86d-4e35-805e-" + deviceId;
                 //サービスUUIDを生成 (ClientとUUIDが一致していればOK)
-                Guid RfcommChatServiceUuid = Guid.Parse("17fcf242-f86d-4e35-805e-546ee3040b84");
+                Guid RfcommChatServiceUuid = Guid.Parse(uuid);
                 rfcommProvider = await RfcommServiceProvider.CreateAsync(RfcommServiceId.FromUuid(RfcommChatServiceUuid));
             }
             // Catch exception HRESULT_FROM_WIN32(ERROR_DEVICE_NOT_AVAILABLE).
@@ -65,26 +75,23 @@ namespace BluetoothServerSample_wpf
                 return;
             }
 
-            Console.WriteLine("接続待機中");
-            //接続されるデバイスの順番を表すID
-            deviceId = deviceorder;
-
             //OnConnectionReceivedをClientからの接続が確立したイベントとして登録
             socketListener = new StreamSocketListener();
             socketListener.ConnectionReceived += OnConnectionReceived;
 
-            var rfcomm = rfcommProvider.ServiceId.AsString();
+            //SDP属性の付与とBluetooth advertisingの開始
+            //advertising: 「自分はこんなサービスを提供していますよ」と言う情報を周囲に発信します。
+            //この情報を載せたパケットをアドバタイジングパケットと言います。サービスの識別にはUUIDを利用します。
+            string rfcomm = rfcommProvider.ServiceId.AsString();
             await socketListener.BindServiceNameAsync(rfcommProvider.ServiceId.AsString(),
                 SocketProtectionLevel.BluetoothEncryptionAllowNullAuthentication);
-
-            //Set the SDP attributes and start Bluetooth advertising
-            //advertising: 自分はこんなサービスを提供していますよ」と言う情報を周囲に発信します
-            //この情報を載せたパケットをアドバタイジングパケットと言います。サービスの識別にはUUIDを利用します。
             InitializeServiceSdpAttributes(rfcommProvider);
 
             try
             {
+                //接続待機
                 rfcommProvider.StartAdvertising(socketListener, true);
+                Console.WriteLine("接続待機中");
             }
             catch
             {
@@ -92,11 +99,10 @@ namespace BluetoothServerSample_wpf
                 //通常、ユーザが自分のプライバシー設定を変更してデバイスとの同期を防止すると例外がスローされます。
                 return;
             }
-            return;
         }
 
-        //周囲にサービスの存在を告知する命令 (コメントアウトしたら接続できなくなったんで一応必要な模様)
-        public void InitializeServiceSdpAttributes(RfcommServiceProvider rfcommProvider)
+        /// <summary> 周囲に告知するサービスの内容を設定 </summary>
+        private void InitializeServiceSdpAttributes(RfcommServiceProvider rfcommProvider)
         {
             var sdpWriter = new DataWriter();
             const UInt16 SdpServiceNameAttributeId = 0x100;
@@ -113,7 +119,94 @@ namespace BluetoothServerSample_wpf
             rfcommProvider.SdpRawAttributes.Add(SdpServiceNameAttributeId, sdpWriter.DetachBuffer());
         }
 
-        //接続したClientとの送受信遅延時間を計測する命令
+        /// <summary> 送信メッセージをOutputStreamに格納する </summary>
+        public async void Send()
+        {
+            // There's no need to send a zero length message
+            // Make sure that the connection is still up and there is a message to send
+            if (socket != null)
+            {
+                //7文字(7バイト)のデータ
+                string data = "ABCDEFG";
+                //バイトデータの文字コードを変更(androidを想定してUTF8に変更しているが変更の必要があるかどうかは未実験、必要ないかも)
+                byte[] bytes = Encoding.UTF8.GetBytes(data);
+
+                //遅延計測開始
+                stopWatch.Reset();
+                stopWatch.Start();
+
+                //OutputStreamに文字列を送信
+                await socket.OutputStream.WriteAsync(bytes.AsBuffer());
+            }
+        }
+
+        /// <summary> InputStreamに格納されている受信メッセージを受け取る </summary>
+        public async void Receive()
+        {
+            try
+            {
+                if (socket != null)
+                {
+                    byte[] buffer = new byte[120];
+                    //InputStreamのデータを変数bufferに格納
+                    await socket.InputStream.ReadAsync(buffer.AsBuffer(), 120, InputStreamOptions.Partial);
+                    //受信したbyteデータを文字列に変換
+                    string message = Encoding.GetEncoding("ASCII").GetString(buffer);
+                    Console.WriteLine("receive message:" + message);
+                }
+            }
+            catch
+            {
+                lock (this)
+                {
+                    if (socket == null)
+                    {
+                        // Do not print anything here -  the user closed the sock
+                    }
+                    else
+                    {
+                        Disconnect();
+                        Console.WriteLine("Player" + (deviceId + 1) + "との通信が切断されました");
+                    }
+                }
+            }
+        }
+
+        /// <summary> Clientとの接続を切断 </summary>
+        public void Disconnect()
+        {
+            if (rfcommProvider != null)
+            {
+                rfcommProvider.StopAdvertising();
+                rfcommProvider = null;
+            }
+
+            if (socketListener != null)
+            {
+                socketListener.Dispose();
+                socketListener = null;
+            }
+
+            if (socket != null)
+            {
+                if (socket.InputStream != null)
+                {
+                    socket.InputStream.Dispose();
+                }
+
+                if (socket.OutputStream != null)
+                {
+                    socket.OutputStream.Dispose();
+                }
+                socket.Dispose();
+                socket = null;
+            }
+        }
+
+        #region 遅延計測実験
+        private System.Diagnostics.Stopwatch pingStopWatch = new System.Diagnostics.Stopwatch();
+        public List<long> delayTimeList = new List<long>();
+        /// <summary> 接続したClientとの送受信遅延時間を計測する </summary>
         public async void Ping(int times)
         {
             try
@@ -172,90 +265,7 @@ namespace BluetoothServerSample_wpf
                 Console.WriteLine("ping実験終了");
             }
         }
-
-        //InputStreamの格納されている受信メッセージを受け取る命令
-        public async void Receive()
-        {
-
-            try
-            {
-                if (socket != null)
-                {
-                    byte[] buffer = new byte[120];
-                    //InputStreamのデータを変数bufferに格納
-                    await socket.InputStream.ReadAsync(buffer.AsBuffer(), 120, InputStreamOptions.Partial);
-                    //受信したbyteデータを文字列に変換
-                    string str = Encoding.GetEncoding("ASCII").GetString(buffer);
-                    MessageBox.Show("" + str);
-                }
-            }
-            catch (Exception ex)
-            {
-                lock (this)
-                {
-                    if (socket == null)
-                    {
-                        // Do not print anything here -  the user closed the sock
-                    }
-                    else
-                    {
-                        Disconnect();
-                        MessageBox.Show("Player" + (deviceId + 1) + "との通信が切断されました");
-                    }
-                }
-            }
-        }
-
-        //送信メッセージをOutputStreamに格納する命令
-        public async void Send()
-        {
-            // There's no need to send a zero length message
-            // Make sure that the connection is still up and there is a message to send
-            if (socket != null)
-            {
-                //7文字(7バイト)のデータ
-                string data = "ABCDEFG";
-                //バイトデータの文字コードを変更(androidを想定してUTF8に変更しているが変更の必要があるかどうかは未実験、必要ないかも)
-                byte[] bytes = System.Text.Encoding.UTF8.GetBytes(data);
-                stopWatch.Reset();
-                stopWatch.Start();
-                //OutputStreamに文字列を送信
-                await socket.OutputStream.WriteAsync(bytes.AsBuffer());
-
-            }
-        }
-
-        //接続切断命令
-        public void Disconnect()
-        {
-            if (rfcommProvider != null)
-            {
-                rfcommProvider.StopAdvertising();
-                rfcommProvider = null;
-            }
-
-            if (socketListener != null)
-            {
-                socketListener.Dispose();
-                socketListener = null;
-            }
-
-            if (socket.InputStream != null)
-            {
-                socket.InputStream.Dispose();
-            }
-
-            if (socket.OutputStream != null)
-            {
-                socket.OutputStream.Dispose();
-            }
-
-            if (socket != null)
-            {
-                socket.Dispose();
-                socket = null;
-            }
-
-        }
+        #endregion
+        #endregion
     }
 }

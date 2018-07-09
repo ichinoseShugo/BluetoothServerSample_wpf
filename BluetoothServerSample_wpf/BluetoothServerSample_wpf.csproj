@@ -62,6 +62,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="RfcommDeviceDisplay.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -104,6 +105,8 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="References\System.Management.dll" />
+    <Resource Include="References\System.Management.xml" />
     <Content Include="References\System.Runtime.WindowsRuntime.dll" />
     <Resource Include="References\System.Runtime.WindowsRuntime.xml" />
   </ItemGroup>
