@@ -30,14 +30,14 @@ namespace BluetoothServerSample_wpf
         public ObservableCollection<RfcommDeviceDisplay> ResultCollection { get; private set; }
 
         /// <summary> 接続済デバイスを表示するためのリスト </summary>
-        public ObservableCollection<string> PairingCollection { get; private set; }
+        public ObservableCollection<RfcommDeviceDisplay> PairingCollection { get; private set; }
 
         //はじめに呼び出される
         public MainWindow()
         {
             InitializeComponent();
             ResultCollection = new ObservableCollection<RfcommDeviceDisplay>();
-            PairingCollection = new ObservableCollection<string>();
+            PairingCollection = new ObservableCollection<RfcommDeviceDisplay>();
         }
 
         //Windowがロードされた時に呼び出される
@@ -61,7 +61,11 @@ namespace BluetoothServerSample_wpf
 
             //Serverの準備と接続待機状態への移行
             var selectedDevice = ResultsListView.SelectedItem as RfcommDeviceDisplay;
-            if (PairingCollection.Contains(selectedDevice.Name)) return;
+            if (PairingCollection.Contains(selectedDevice))
+            {
+                Console.WriteLine("もうある");
+                return;
+            }
             BluetoothServer bluetoothServer = new BluetoothServer(deviceCount++, selectedDevice, this);
             bServerList.Add(bluetoothServer);
             bluetoothServer.Listen();
@@ -194,7 +198,6 @@ namespace BluetoothServerSample_wpf
             {
                 await Dispatcher.BeginInvoke(
                 new Action(() => {
-
                 }
                 ));
             });
@@ -258,15 +261,16 @@ namespace BluetoothServerSample_wpf
         #endregion
 
         #region 接続済みデバイス一覧の取得と表示
-        public async void Player_Connect(string devicename)
+        public async void Player_Connect(RfcommDeviceDisplay device)
         {
             await Dispatcher.BeginInvoke(
                  new Action(() =>
                  {
-                     PairingCollection.Add(devicename);
+                     PairingCollection.Add(device);
                  }
                 ));
         }
+
         private void PairingList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             selectedIndex = PairingList.SelectedIndex;

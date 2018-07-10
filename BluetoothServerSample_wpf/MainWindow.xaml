@@ -34,6 +34,13 @@
             </ListView>
             <ListView x:Name="PairingList" ItemsSource="{Binding}" SelectionChanged="PairingList_SelectionChanged" 
                   HorizontalAlignment="Left" VerticalAlignment="Top" Grid.Column="1">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn DisplayMemberBinding="{Binding Path=Name}">
+                            <GridViewColumnHeader Content="Name" Tag="Name" />
+                        </GridViewColumn>
+                    </GridView>
+                </ListView.View>
             </ListView>
         </Grid>
 
